@@ -18,11 +18,9 @@ public class ChatClient {
 
     public void start(ConnectionRequest connectionRequest) {
         try {
-            System.out.println("스레드명1 : " + Thread.currentThread().getName());
             initializeConnection(connectionRequest.ip(), connectionRequest.port().value());
             handleServerMessages();
             handleUserInput();
-            System.out.println("스레드명3 : " + Thread.currentThread().getName());
         } catch (IOException e) {
             System.out.println("서버에 연결 중 오류 발생: " + e.getMessage());
         } finally {
@@ -49,15 +47,19 @@ public class ChatClient {
                 String response;
                 while ((response = server.readLine()) != null) {
                     System.out.println(response);
-                    if ("서버가 종료되었습니다.".equals(response)) {
-                        System.out.println("서버와의 연결이 종료되었습니다.");
-                        System.exit(0);
-                    }
+                    checkShutdownCmd(response);
                 }
             } catch (IOException e) {
                 System.out.println("서버와의 통신 중 오류 발생: " + e.getMessage());
             }
         }).start();
+    }
+
+    private void checkShutdownCmd(String response) throws IOException {
+        if ("연결이 종료되었습니다.".equals(response)) {
+            socket.close();
+            System.exit(0);
+        }
     }
 
     private void handleUserInput() throws IOException {

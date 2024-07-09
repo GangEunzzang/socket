@@ -30,6 +30,7 @@ public class ClientHandler {
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             out = new PrintWriter(clientSocket.getOutputStream(), true);
             promptForUniqueNickname(in);
+            out.println(clientName + "님 반갑습니다.");
             broadcast("[서버] " + clientName + "님이 접속하였습니다.");
             clientHandlers.add(this);
 
@@ -45,6 +46,8 @@ public class ClientHandler {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            disconnect();
         }
     }
 
@@ -74,6 +77,7 @@ public class ClientHandler {
         switch (CommandType.of(command)) {
             case LIST -> listUsers();
             case QUIT -> disconnect();
+
             default -> out.println("유효한 명령어가 아닙니다.");
         }
     }
@@ -104,6 +108,7 @@ public class ClientHandler {
 
     private void disconnect() {
         try {
+            out.println("연결이 종료되었습니다.");
             clientHandlers.remove(this);
             broadcast("[서버] " + clientName + "님이 접속 종료하였습니다.");
             clientSocket.close();
@@ -114,5 +119,22 @@ public class ClientHandler {
 
     public void sendServerShutdownMessage() {
         out.println("서버가 종료되었습니다.");
+    }
+
+    public static class ClientHandlerRunnable implements Runnable {
+        private final ClientHandler handler;
+
+        public ClientHandlerRunnable(ClientHandler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void run() {
+            handler.handleClient();
+        }
+
+        public Socket getClientSocket() {
+            return handler.getClientSocket();
+        }
     }
 }
