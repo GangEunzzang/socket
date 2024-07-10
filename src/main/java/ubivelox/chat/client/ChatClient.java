@@ -1,7 +1,7 @@
 package ubivelox.chat.client;
 
-import ubivelox.chat.model.ConnectionRequest;
-import ubivelox.chat.model.Port;
+import ubivelox.chat.vo.ConnectionRequest;
+import ubivelox.chat.vo.Port;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,7 +28,7 @@ public class ChatClient {
                 try {
                     socket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    System.out.println("소켓 종료 중 오류 발생: " + e.getMessage());
                 }
             }
         }
@@ -38,7 +38,6 @@ public class ChatClient {
         socket = new Socket(ip, port);
         server = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new PrintWriter(socket.getOutputStream(), true);
-        System.out.println(server.readLine()); // Display server's first message
     }
 
     private void handleServerMessages() {
@@ -50,14 +49,23 @@ public class ChatClient {
                     checkShutdownCmd(response);
                 }
             } catch (IOException e) {
+                checkConnectionShutdownMessage(e);
                 System.out.println("서버와의 통신 중 오류 발생: " + e.getMessage());
             }
         }).start();
     }
 
     private void checkShutdownCmd(String response) throws IOException {
-        if ("연결이 종료되었습니다.".equals(response)) {
+        if ("연결이 종료되었습니다.".equals(response) || "서버의 가용 가능한 스레드가 없습니다. 나중에 다시 시도해주세요".equals(response)) {
             socket.close();
+            System.exit(0);
+        }
+
+    }
+
+    private void checkConnectionShutdownMessage(IOException e) {
+        if (e.getMessage().equals("Connection reset")) {
+            System.out.println("서버가 종료되었습니다.");
             System.exit(0);
         }
     }
@@ -71,7 +79,7 @@ public class ChatClient {
 
     public static void main(String[] args) {
         if (args.length != 1 || !args[0].contains(":")) {
-            System.out.println("사용법: java ChatClient <서버 IP:포트>");
+            System.out.println("사용법 : 서버 IP:포트 ");
             return;
         }
         String[] address = args[0].split(":");

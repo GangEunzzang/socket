@@ -1,4 +1,4 @@
-package ubivelox.chat.model;
+package ubivelox.chat.vo;
 
 import lombok.Builder;
 

@@ -1,15 +1,16 @@
 package ubivelox.chat.server.config;
 
-import java.util.concurrent.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class ThreadPoolConfig {
 
     public static final int CORE_POOL_SIZE = 2;
-    public static final int MAXIMUM_POOL_SIZE = 4;
+    public static final int MAXIMUM_POOL_SIZE = 2;
     public static final long KEEP_ALIVE_TIME = 10L;
     public static final TimeUnit TIME_UNIT = TimeUnit.SECONDS;
     public static final int CAPACITY = 2;
-
 
     public static ThreadPoolExecutor threadPoolExecutor() {
         return new ThreadPoolExecutor(

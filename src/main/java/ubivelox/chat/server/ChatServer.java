@@ -1,7 +1,6 @@
 package ubivelox.chat.server;
 
-import java.util.concurrent.RejectedExecutionException;
-import ubivelox.chat.model.Port;
+import ubivelox.chat.vo.Port;
 import ubivelox.chat.server.config.ThreadPoolConfig;
 
 import java.io.IOException;
@@ -11,7 +10,6 @@ import java.net.Socket;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class ChatServer {
@@ -23,10 +21,14 @@ public class ChatServer {
         threadPool = ThreadPoolConfig.threadPoolExecutor();
     }
 
+    public ChatServer(Set<ClientHandler> clientHandlers, ThreadPoolExecutor threadPool) {
+        this.clientHandlers = clientHandlers;
+        this.threadPool = threadPool;
+    }
+
     public void start(Port port) {
         try (ServerSocket serverSocket = new ServerSocket(port.value())) {
             System.out.println("채팅 서버가 시작되었습니다. (포트: " + port.value() + ")");
-            System.out.println("접속 가능 유저 수 : " + ThreadPoolConfig.CORE_POOL_SIZE + "명");
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 handleClientSocket(clientSocket);
@@ -38,26 +40,28 @@ public class ChatServer {
         }
     }
 
-    private void handleClientSocket(Socket clientSocket) {
-        ClientHandler handler = new ClientHandler(clientSocket, clientHandlers, this);
-        try {
-            threadPool.execute(handler::handleClient);
-        } catch (RejectedExecutionException e) {
-            System.out.println("자리없음");
+    protected void handleClientSocket(Socket clientSocket) {
+        ClientHandler handler = new ClientHandler(clientSocket, clientHandlers);
+        if (threadPool.getActiveCount() >= ThreadPoolConfig.CORE_POOL_SIZE) {
             sendRejectMessage(clientSocket);
+            return;
         }
+
+        threadPool.submit(handler::handleClient);
     }
 
-    private void sendRejectMessage(Socket clientSocket) {
+    protected void sendRejectMessage(Socket clientSocket) {
         try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
-            out.println("서버의 가용 가능한 스레드가 없습니다. 대기 중입니다.");
-        } catch (IOException ioException) {
-            System.out.println("클라이언트 거절 메시지 전송 중 오류 발생: " + ioException.getMessage());
+            out.println("서버의 가용 가능한 스레드가 없습니다. 나중에 다시 시도해주세요");
+            clientSocket.close();
+
+
+        } catch (IOException e) {
+            System.out.println("클라이언트 거절 메시지 전송 중 오류 발생: " + e.getMessage());
         }
     }
 
     private void shutdownServer() {
-        clientHandlers.forEach(ClientHandler::sendServerShutdownMessage);
         threadPool.shutdown();
     }
 
@@ -70,13 +74,4 @@ public class ChatServer {
         new ChatServer().start(port);
     }
 
-    private class CustomRejectedExecutionHandler implements RejectedExecutionHandler {
-        @Override
-        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-            if (r instanceof ClientHandler.ClientHandlerRunnable) {
-                Socket clientSocket = ((ClientHandler.ClientHandlerRunnable) r).getClientSocket();
-                sendRejectMessage(clientSocket);
-            }
-        }
-    }
 }
